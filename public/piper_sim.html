@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piper AM · Sim</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#08090f;--panel:#0e1020;--border:#1a2035;--border2:#242d48;
+  --accent:#00d4ff;--accent2:#7c3aed;--accent3:#f59e0b;
+  --text:#d8e0f0;--text2:#7888a0;--text3:#3a4460;
+  --ok:#22c55e;--warn:#f59e0b;--err:#ef4444;
+  --mono:'JetBrains Mono',monospace;--sans:'Space Grotesk',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12px}
+body{display:flex;flex-direction:column}
+.topbar{height:42px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:14px;flex-shrink:0}
+.logo{font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--accent);padding-right:14px;border-right:1px solid var(--border)}
+.tb-badge{font-size:10px;color:var(--text2);display:flex;align-items:center;gap:5px}
+.tb-badge b{color:var(--accent);font-weight:600}
+.tb-badge.warn b{color:var(--warn)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.ml{margin-left:auto}
+.main{flex:1;display:flex;overflow:hidden;min-height:0}
+#vp{flex:1;position:relative;overflow:hidden}
+canvas{width:100%;height:100%;display:block}
+.hud{position:absolute;inset:0;pointer-events:none}
+.hp{position:absolute;background:rgba(8,9,15,.85);border:1px solid var(--border);border-radius:6px;backdrop-filter:blur(6px)}
+.hp-tl{top:12px;left:12px;padding:10px 13px;min-width:200px}
+.hp-tr{top:12px;right:12px;padding:7px 12px;font-size:10px;letter-spacing:.1em;color:var(--accent);pointer-events:auto}
+.hp-br{bottom:12px;right:12px;padding:7px 10px;display:flex;gap:8px;pointer-events:auto}
+.hp-bl{bottom:12px;left:12px;padding:7px 10px;display:flex;flex-direction:column;gap:3px}
+.hrow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px}
+.hrow:last-child{margin-bottom:0}
+.hlbl{font-size:9px;letter-spacing:.12em;color:var(--text3);text-transform:uppercase;min-width:60px}
+.hval{font-size:11px;font-weight:600;color:var(--accent);text-align:right}
+.hval.ok{color:var(--ok)}.hval.fail{color:var(--err)}.hval.warn{color:var(--warn)}
+.vbtn{background:rgba(8,9,15,.8);border:1px solid var(--border);border-radius:4px;color:var(--text2);font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:5px 8px;cursor:pointer;pointer-events:auto;transition:border-color .12s,color .12s}
+.vbtn:hover,.vbtn.act{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.07)}
+.hint{font-size:9px;color:var(--text3);display:flex;gap:6px}
+.hint kbd{font-family:var(--mono);font-size:8px;background:var(--panel);border:1px solid var(--border);border-radius:2px;padding:1px 4px;color:var(--text2)}
+#loading{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;gap:16px}
+.lring{width:44px;height:44px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ltitle{font-family:var(--sans);font-size:16px;font-weight:700;color:var(--accent);letter-spacing:.2em}
+.lmsg{font-size:10px;color:var(--text3);letter-spacing:.08em}
+.lbarw{width:180px;height:2px;background:var(--border);border-radius:1px;overflow:hidden}
+.lbar{height:100%;background:var(--accent);width:0%;transition:width .25s}
+#sb{width:290px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{flex:1;padding:9px 4px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);cursor:pointer;text-align:center;border-right:1px solid var(--border);border-bottom:2px solid transparent;transition:color .12s,background .12s}
+.tab:last-child{border-right:none}
+.tab:hover{color:var(--text)}
+.tab.act{color:var(--accent);border-bottom-color:var(--accent);background:rgba(0,212,255,.03)}
+.tp{display:none;flex-direction:column;overflow-y:auto;flex:1}
+.tp.act{display:flex}
+.sec{border-bottom:1px solid var(--border);padding:13px;flex-shrink:0}
+.stitle{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--text3);margin-bottom:11px;display:flex;justify-content:space-between;align-items:center}
+.stitle-v{color:var(--accent);font-weight:600}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.cbtn{background:transparent;border:1px solid var(--border);color:var(--text2);font-family:var(--mono);font-size:9px;padding:7px 5px;border-radius:4px;cursor:pointer;transition:all .12s;letter-spacing:.07em;text-transform:uppercase;text-align:center;display:flex;flex-direction:column;gap:3px;align-items:center}
+.cbtn:hover,.cbtn.act{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.07)}
+.ci{font-size:13px}.cl{font-size:8px;letter-spacing:.1em}
+.srow{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.srow:last-child{margin-bottom:0}
+.slbl{font-size:9px;color:var(--text3);min-width:44px;flex-shrink:0}
+.swrap{flex:1}
+input[type=range]{-webkit-appearance:none;width:100%;height:2px;background:var(--border);border-radius:1px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 5px rgba(0,212,255,.4)}
+.sval{font-size:10px;color:var(--accent);min-width:42px;text-align:right;font-weight:600}
+.jrow{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.jname{font-size:9px;color:var(--text3);min-width:38px;flex-shrink:0}
+.jtrack{flex:1;height:3px;background:var(--border);border-radius:2px;position:relative}
+.jfill{position:absolute;height:100%;border-radius:2px;background:var(--accent);min-width:2px;transition:left .06s,width .06s}
+.jfill.neg{background:var(--accent2)}
+.jdeg{font-size:9px;color:var(--text);min-width:42px;text-align:right;font-weight:600}
+.dz{border:1px dashed var(--border2);border-radius:5px;padding:16px;text-align:center;color:var(--text3);font-size:10px;cursor:pointer;transition:border-color .15s,color .15s;line-height:1.8}
+.dz:hover,.dz.over{border-color:var(--accent);color:var(--text2)}
+.flist{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.fi{font-size:9px;color:var(--text2);display:flex;align-items:center;gap:7px}
+.fdot{width:5px;height:5px;border-radius:50%;background:var(--ok);flex-shrink:0}
+.fdot.p{background:var(--warn)}.fdot.e{background:var(--err)}
+.mtable{width:100%;border-collapse:collapse;margin-top:6px}
+.mtable td{font-size:9px;padding:4px 3px;border-bottom:1px solid var(--border)}
+.mtable td:first-child{color:var(--text3)}
+.mbadge{display:inline-block;font-size:8px;padding:1px 5px;border-radius:2px;border:1px solid var(--border)}
+.mbadge.ok{color:var(--ok);border-color:var(--ok);background:rgba(34,197,94,.08)}
+.mbadge.p{color:var(--warn);border-color:var(--warn);background:rgba(245,158,11,.08)}
+.ikres{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:4px;padding:9px;margin-top:8px;font-size:10px;color:var(--text2);line-height:1.8}
+.ok{color:var(--ok)}.err{color:var(--err)}
+.sbtn{width:100%;background:transparent;border:1px solid var(--accent2);color:var(--accent2);font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:8px;border-radius:4px;cursor:pointer;transition:all .12s;margin-top:9px}
+.sbtn:hover{background:rgba(124,58,237,.1)}
+.sbtn.gold{border-color:var(--accent3);color:var(--accent3)}
+.gfx{display:flex;justify-content:center;align-items:flex-start;height:32px;position:relative;margin-bottom:9px}
+.gf{width:7px;height:26px;background:var(--border2);border-radius:2px;position:absolute;top:0;transition:transform .15s}
+.gf.l{left:calc(50% - 15px);transform-origin:top right}
+.gf.r{left:calc(50% + 8px);transform-origin:top left}
+.acard{background:rgba(0,212,255,.03);border:1px solid var(--border);border-radius:5px;padding:11px;margin-bottom:9px}
+.acard h4{font-family:var(--sans);font-size:12px;font-weight:600;color:var(--text);margin-bottom:5px}
+.acard p{font-size:10px;color:var(--text2);line-height:1.7}
+.atable{width:100%;border-collapse:collapse}
+.atable td{font-size:10px;padding:5px 3px;border-bottom:1px solid var(--border)}
+.atable td:first-child{color:var(--text3);width:110px}
+.atable td:last-child{color:var(--text);font-weight:500}
+
+/* IK Speed section */
+.ik-speed-row{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+
+/* TERMINAL */
+#term-wrap{display:flex;flex-direction:column;height:100%}
+.term-out{flex:1;overflow-y:auto;background:#020305;padding:8px 10px;font-size:10px;color:var(--text3);line-height:1.8;font-family:var(--mono)}
+.term-out::-webkit-scrollbar{width:3px}.term-out::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.term-in-wrap{display:flex;align-items:center;border-top:1px solid var(--border);background:#040508;padding:4px 8px;gap:6px;flex-shrink:0}
+.term-prompt{color:var(--accent);font-size:10px;flex-shrink:0}
+#term-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--mono);font-size:10px}
+.tl-line{display:flex;gap:5px}.tl-line .ts{color:var(--accent2);flex-shrink:0}
+
+.tlog{height:130px;overflow-y:auto;background:#040508;border-top:1px solid var(--border);padding:8px 10px;font-size:10px;color:var(--text3);line-height:1.8;flex-shrink:0}
+.tlog::-webkit-scrollbar{width:3px}.tlog::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.tl{display:flex;gap:5px}.tl .ts{color:var(--accent2);flex-shrink:0}
+.tp::-webkit-scrollbar{width:2px}.tp::-webkit-scrollbar-thumb{background:var(--border2);border-radius:1px}
+.sbar{height:24px;background:#060810;border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:16px;flex-shrink:0}
+.sbi{font-size:9px;color:var(--text3);display:flex;align-items:center;gap:5px}
+.sbi .v{color:var(--text2);font-weight:500}
+.sep{color:var(--border2)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">PIPER AM · SIM</div>
+  <div class="tb-badge"><div class="dot"></div>LIVE</div>
+  <div class="tb-badge">CTRL: <b id="tb-ctrl">HOME</b></div>
+  <div class="tb-badge warn">IK: <b id="tb-ik">—</b></div>
+  <div class="tb-badge">T: <b id="tb-t">0.0s</b></div>
+  <div class="tb-badge ml">EE: <b id="tb-ee">—</b></div>
+</div>
+
+<div class="main">
+  <div id="vp">
+    <canvas id="c"></canvas>
+    <div class="hud">
+      <div class="hp hp-tl">
+        <div class="hrow"><span class="hlbl">EE X</span><span class="hval" id="h-x">—</span></div>
+        <div class="hrow"><span class="hlbl">EE Y</span><span class="hval" id="h-y">—</span></div>
+        <div class="hrow"><span class="hlbl">EE Z</span><span class="hval" id="h-z">—</span></div>
+        <div class="hrow"><span class="hlbl">ROLL</span><span class="hval" id="h-r">—</span></div>
+        <div class="hrow"><span class="hlbl">PITCH</span><span class="hval" id="h-p">—</span></div>
+        <div class="hrow"><span class="hlbl">YAW</span><span class="hval" id="h-yw">—</span></div>
+        <div class="hrow" style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border)">
+          <span class="hlbl">IK ERR</span><span class="hval" id="h-ik">—</span>
+        </div>
+      </div>
+      <div class="hp hp-tr" id="ctrl-badge">HOME</div>
+      <div class="hp hp-br">
+        <button class="vbtn" onclick="setView('front')">FRONT</button>
+        <button class="vbtn" onclick="setView('side')">SIDE</button>
+        <button class="vbtn" onclick="setView('top')">TOP</button>
+        <button class="vbtn act" onclick="setView('iso')">ISO</button>
+      </div>
+      <div class="hp hp-bl">
+        <div class="hint"><kbd>Drag</kbd>Orbit</div>
+        <div class="hint"><kbd>Scroll</kbd>Zoom</div>
+        <div class="hint"><kbd>RMB</kbd>Pan</div>
+      </div>
+    </div>
+    <div id="loading">
+      <div class="lring"></div>
+      <div class="ltitle">PIPER SIM</div>
+      <div class="lmsg" id="lmsg">Initialising…</div>
+      <div class="lbarw"><div class="lbar" id="lbar"></div></div>
+    </div>
+  </div>
+
+  <div id="sb">
+    <div class="tabs">
+      <div class="tab act" data-t="ctrl">CTRL</div>
+      <div class="tab" data-t="ik">IK</div>
+      <div class="tab" data-t="joints">JOINTS</div>
+      <div class="tab" data-t="meshes">MESHES</div>
+      <div class="tab" data-t="term">TERM</div>
+      <div class="tab" data-t="about">INFO</div>
+    </div>
+
+    <!-- CTRL tab -->
+    <div class="tp act" data-p="ctrl">
+      <div class="sec">
+        <div class="stitle">Motion Controller</div>
+        <div class="cgrid">
+          <button class="cbtn act" data-ctrl="home"><span class="ci">⏹</span><span class="cl">Home</span></button>
+          <button class="cbtn" data-ctrl="sine"><span class="ci">〜</span><span class="cl">Sine</span></button>
+          <button class="cbtn" data-ctrl="circle"><span class="ci">⊙</span><span class="cl">Circle</span></button>
+          <button class="cbtn" data-ctrl="demo"><span class="ci">◈</span><span class="cl">Demo</span></button>
+          <button class="cbtn" data-ctrl="traj"><span class="ci">⇌</span><span class="cl">Traj</span></button>
+          <button class="cbtn" data-ctrl="track"><span class="ci">⊕</span><span class="cl">IK Track</span></button>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="stitle">Gripper</div>
+        <div class="gfx"><div class="gf l" id="gfl"></div><div class="gf r" id="gfr"></div></div>
+        <div class="srow">
+          <span class="slbl">Open %</span>
+          <div class="swrap"><input type="range" id="g-sl" min="0" max="100" step="1" value="0"></div>
+          <span class="sval" id="g-out">0%</span>
+        </div>
+        <div class="srow">
+          <span class="slbl">Speed</span>
+          <div class="swrap"><input type="range" id="spd" min="0.1" max="3" step="0.05" value="1"></div>
+          <span class="sval" id="spd-out">1.0×</span>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="stitle">Display</div>
+        <div class="srow">
+          <label style="flex:1;font-size:10px;color:var(--text2);display:flex;align-items:center;gap:7px;cursor:pointer"><input type="checkbox" id="cb-grid" checked> Grid</label>
+          <label style="flex:1;font-size:10px;color:var(--text2);display:flex;align-items:center;gap:7px;cursor:pointer"><input type="checkbox" id="cb-axes" checked> Axes</label>
+        </div>
+        <div class="srow">
+          <label style="flex:1;font-size:10px;color:var(--text2);display:flex;align-items:center;gap:7px;cursor:pointer"><input type="checkbox" id="cb-trail"> EE Trail</label>
+          <label style="flex:1;font-size:10px;color:var(--text2);display:flex;align-items:center;gap:7px;cursor:pointer"><input type="checkbox" id="cb-ikt"> IK Target</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- IK tab -->
+    <div class="tp" data-p="ik">
+      <div class="sec">
+        <div class="stitle">IK Target (metres)</div>
+        <div class="srow"><span class="slbl">X</span><div class="swrap"><input type="range" id="ik-x" min="-0.45" max="0.55" step="0.002" value="0.30"></div><span class="sval" id="ik-x-v">0.300</span></div>
+        <div class="srow"><span class="slbl">Y</span><div class="swrap"><input type="range" id="ik-y" min="-0.40" max="0.40" step="0.002" value="0.00"></div><span class="sval" id="ik-y-v">0.000</span></div>
+        <div class="srow"><span class="slbl">Z</span><div class="swrap"><input type="range" id="ik-z" min="0.02" max="0.65" step="0.002" value="0.35"></div><span class="sval" id="ik-z-v">0.350</span></div>
+        <div class="srow" style="margin-top:6px">
+          <span class="slbl">Iters</span>
+          <div class="swrap"><input type="range" id="ik-iters" min="10" max="800" step="10" value="300"></div>
+          <span class="sval" id="ik-iters-v">300</span>
+        </div>
+        <div class="srow">
+          <span class="slbl">Tol mm</span>
+          <div class="swrap"><input type="range" id="ik-tol" min="0.1" max="20" step="0.1" value="1.0"></div>
+          <span class="sval" id="ik-tol-v">1.0</span>
+        </div>
+        <div class="srow">
+          <span class="slbl">α gain</span>
+          <div class="swrap"><input type="range" id="ik-alpha" min="0.05" max="1.0" step="0.05" value="0.5"></div>
+          <span class="sval" id="ik-alpha-v">0.50</span>
+        </div>
+        <button class="sbtn" id="ik-go">▶ SOLVE IK &amp; MOVE</button>
+        <div class="ikres" id="ik-res">Set target then press SOLVE.</div>
+      </div>
+      <div class="sec">
+        <div class="stitle">Self-Test</div>
+        <button class="sbtn gold" id="ik-test">▶ RUN IK TESTS</button>
+      </div>
+    </div>
+
+    <!-- JOINTS tab -->
+    <div class="tp" data-p="joints">
+      <div class="sec">
+        <div class="stitle">Live Joint States <span class="stitle-v" id="jt-hz">—</span></div>
+        <div id="jbars"></div>
+      </div>
+      <div class="sec">
+        <div class="stitle">Manual Control</div>
+        <div id="mjsliders"></div>
+      </div>
+    </div>
+
+    <!-- MESHES tab -->
+    <div class="tp" data-p="meshes">
+      <div class="sec">
+        <div class="stitle">Load STL Meshes</div>
+        <div class="dz" id="dz">
+          <div style="font-size:22px;margin-bottom:5px">⬆</div>
+          <b style="color:var(--text2)">Drop all STL files here</b><br>
+          <span style="font-size:9px">or click to browse</span><br>
+          <span style="font-size:9px;color:var(--accent3)">Auto-attaches to URDF FK frame</span>
+        </div>
+        <input type="file" id="fi" multiple accept=".stl,.STL" style="display:none">
+        <div class="flist" id="flist"></div>
+      </div>
+      <div class="sec">
+        <div class="stitle">Mesh Status</div>
+        <table class="mtable" id="mtable"></table>
+        <div class="ikres" id="mstat">Drop STL files to replace procedural geometry.</div>
+      </div>
+    </div>
+
+    <!-- TERMINAL tab -->
+    <div class="tp" data-p="term" style="overflow:hidden">
+      <div id="term-wrap">
+        <div class="term-out" id="term-out"></div>
+        <div class="term-in-wrap">
+          <span class="term-prompt">piper&gt;</span>
+          <input type="text" id="term-input" placeholder="type command…" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+    </div>
+
+    <!-- ABOUT tab -->
+    <div class="tp" data-p="about">
+      <div class="sec">
+        <div class="acard">
+          <h4>Piper AM Robotic Arm</h4>
+          <p>6-DOF desktop arm by AgileX Robotics. URDF FK chain. CCD IK solver with damped step. Prismatic gripper (link7/8).</p>
+        </div>
+        <table class="atable">
+          <tr><td>DOF</td><td>6 revolute + gripper</td></tr>
+          <tr><td>Joint 1</td><td>±150° (±2.618 rad)</td></tr>
+          <tr><td>Joint 2</td><td>0° → 180°</td></tr>
+          <tr><td>Joint 3</td><td>−170° → 0°</td></tr>
+          <tr><td>Joint 4</td><td>±100°</td></tr>
+          <tr><td>Joint 5</td><td>±70°</td></tr>
+          <tr><td>Joint 6</td><td>±120°</td></tr>
+          <tr><td>Gripper</td><td>±35 mm per finger</td></tr>
+          <tr><td>Link2 len</td><td>285.03 mm</td></tr>
+          <tr><td>Link3 reach</td><td>250.75 mm</td></tr>
+          <tr><td>Base H</td><td>123 mm</td></tr>
+          <tr><td>Wrist off</td><td>91 mm</td></tr>
+        </table>
+        <div style="margin-top:10px;font-size:9px;color:var(--text3);line-height:1.9">
+          <b style="color:var(--text2)">Terminal commands:</b><br>
+          AP10 → Joint A +10°&nbsp;&nbsp;BN05 → Joint B -5°<br>
+          G10 → gripper open +10mm<br>
+          F10 → gripper close -10mm<br>
+          W → add waypoint&nbsp;&nbsp;L → list WPs<br>
+          CW → clear WPs&nbsp;&nbsp;P → print EE pos<br>
+          V5 → set speed 5/10&nbsp;&nbsp;E → e-stop<br>
+          R → resume&nbsp;&nbsp;Z → home&nbsp;&nbsp;S → save CSV<br>
+          M → mode menu&nbsp;&nbsp;Q → quit
+        </div>
+      </div>
+    </div>
+
+    <div class="tlog" id="tlog"></div>
+  </div>
+</div>
+
+<div class="sbar">
+  <div class="sbi">SIM: <span class="v" id="sb-t">0.0s</span></div>
+  <span class="sep">|</span>
+  <div class="sbi">STEP: <span class="v" id="sb-s">0</span></div>
+  <span class="sep">|</span>
+  <div class="sbi">EE: <span class="v" id="sb-ee">—</span></div>
+  <span class="sep">|</span>
+  <div class="sbi" style="margin-left:auto">Three.js r128 · URDF-FK · CCD-IK</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════════════
+//  PIPER AM — Fixed URDF simulation
+//  Fixes: correct upright orientation, improved CCD-IK with damping
+//         + adjustable params, correct gripper finger opposing motion,
+//         terminal with full command set
+// ═══════════════════════════════════════════════════════════════════
+
+// ── URDF joint chain ────────────────────────────────────────────
+// The URDF coordinate frame: +Z is up, arm stands upright from base_link.
+// joint1: base_link → link1   xyz=[0,0,0.123] rpy=[0,0,0]           axis=[0,0,1]
+// joint2: link1 → link2       xyz=[0,0,0]     rpy=[π/2,-0.1359,-π]  axis=[0,0,1]
+// joint3: link2 → link3       xyz=[0.285,0,0] rpy=[0,0,-1.794]      axis=[0,0,1]
+// joint4: link3 → link4       xyz=[-0.022,-0.251,0] rpy=[π/2,0,0]   axis=[0,0,1]
+// joint5: link4 → link5       xyz=[0,0,0]     rpy=[-π/2,0,0]        axis=[0,0,1]
+// joint6: link5 → link6       xyz=[8.8e-5,-0.091,0] rpy=[π/2,0,0]  axis=[0,0,1]
+// fixed:  link6 → gripper_base xyz=[0,0,0] rpy=[0,0,0]
+
+const JOINTS = [
+  {n:'J1', xyz:[0,0,0.123],              rpy:[0,0,0],                  ax:[0,0,1], lo:-2.618,  hi:2.618 },
+  {n:'J2', xyz:[0,0,0],                  rpy:[1.5708,-0.1359,-3.1416], ax:[0,0,1], lo:0,       hi:3.14  },
+  {n:'J3', xyz:[0.28503,0,0],            rpy:[0,0,-1.7939],            ax:[0,0,1], lo:-2.967,  hi:0     },
+  {n:'J4', xyz:[-0.021984,-0.25075,0],   rpy:[1.5708,0,0],             ax:[0,0,1], lo:-1.745,  hi:1.745 },
+  {n:'J5', xyz:[0,0,0],                  rpy:[-1.5708,0,0],            ax:[0,0,1], lo:-1.22,   hi:1.22  },
+  {n:'J6', xyz:[8.826e-5,-0.091,0],      rpy:[1.5708,0,0],             ax:[0,0,1], lo:-2.0944, hi:2.0944},
+  {n:'GB', xyz:[0,0,0],                  rpy:[0,0,0],                  ax:[0,0,1], lo:0, hi:0, fixed:true},
+];
+
+const LINK_ORDER = ['base_link','link1','link2','link3','link4','link5','link6','gripper_base'];
+const FINGER_LINKS = ['link7','link8'];
+const ALL_STL = ['base_link','link1','link2','link3','link4','link5','link6','gripper_base','link7','link8'];
+
+// Home: arm standing upright, reaching forward
+const HOME = [0, 0.5, -1.2, 0, 0.8, 0];
+
+// ── State ────────────────────────────────────────────────────────
+let angles   = [...HOME];
+let gOpenMM  = 0;       // gripper open amount in mm (0=closed, 35=fully open)
+let speed    = 1;
+let simT     = 0, simStep = 0;
+let ctrlName = 'home', ctrl = null;
+let manual   = false;
+let ikOk     = false, ikErr = 0;
+let eStopped = false;
+const waypoints = [];
+let csvLog = [];
+let csvLogging = false;
+
+// ── FK Math ──────────────────────────────────────────────────────
+const M4 = () => new THREE.Matrix4();
+const V3 = (x,y,z) => new THREE.Vector3(x,y,z);
+
+function urdfMat(xyz, rpy) {
+  const [x,y,z] = xyz, [r,p,yw] = rpy;
+  const Tr = M4().makeTranslation(x,y,z);
+  const Rx = M4().makeRotationX(r);
+  const Ry = M4().makeRotationY(p);
+  const Rz = M4().makeRotationZ(yw);
+  return M4().multiplyMatrices(Tr, M4().multiplyMatrices(Rz, M4().multiplyMatrices(Ry, Rx)));
+}
+
+function rotMat(ax, theta) {
+  return M4().makeRotationFromQuaternion(
+    new THREE.Quaternion().setFromAxisAngle(V3(...ax).normalize(), theta)
+  );
+}
+
+function fk(ang) {
+  const mats = [];
+  let T = M4();
+  mats.push(T.clone());
+  for (let i = 0; i < JOINTS.length; i++) {
+    const j = JOINTS[i];
+    T = M4().multiplyMatrices(T, urdfMat(j.xyz, j.rpy));
+    if (!j.fixed) T = M4().multiplyMatrices(T, rotMat(j.ax, ang[i] ?? 0));
+    mats.push(T.clone());
+  }
+  return mats;
+}
+
+function fkEE(ang) {
+  const mats = fk(ang);
+  const T = mats[mats.length - 1];
+  const pos = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+  T.decompose(pos, q, s);
+  return {pos, q, mats};
+}
+
+// Gripper fingers: link7 moves in +Y, link8 moves in -Y (opposing)
+function fingerMats(gbMat, openMM) {
+  const d = openMM * 0.001; // mm to m
+  // link7 translates in local +Y (one side)
+  const To7 = urdfMat([0,0,0.1358],[1.5708,0,0]);
+  const To8 = urdfMat([0,0,0.1358],[1.5708,0,-3.1416]);
+  // Prismatic: link7 goes +d, link8 goes -d (opposing)
+  const P7 = M4().makeTranslation(0, d, 0);
+  const P8 = M4().makeTranslation(0, -d, 0);
+  const W7 = M4().multiplyMatrices(gbMat, M4().multiplyMatrices(To7, P7));
+  const W8 = M4().multiplyMatrices(gbMat, M4().multiplyMatrices(To8, P8));
+  return [W7, W8];
+}
+
+// ── CCD IK — with damping & adjustable params ─────────────────────
+function solveIK(target, maxIter, tolM, alpha) {
+  maxIter = maxIter || 300;
+  tolM    = tolM    || 0.001;
+  alpha   = alpha   || 0.5;
+  const tgt = V3(...target);
+  let ang = [...angles];
+  let err = Infinity;
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    const {pos:ee} = fkEE(ang);
+    err = ee.distanceTo(tgt);
+    if (err < tolM) break;
+
+    for (let j = JOINTS.length - 1; j >= 0; j--) {
+      if (JOINTS[j].fixed) continue;
+      // World mat up to joint j pivot
+      let Tj = M4();
+      for (let k = 0; k < j; k++) {
+        const jk = JOINTS[k];
+        Tj = M4().multiplyMatrices(Tj, urdfMat(jk.xyz, jk.rpy));
+        if (!jk.fixed) Tj = M4().multiplyMatrices(Tj, rotMat(jk.ax, ang[k]));
+      }
+      Tj = M4().multiplyMatrices(Tj, urdfMat(JOINTS[j].xyz, JOINTS[j].rpy));
+
+      const jp = new THREE.Vector3().setFromMatrixPosition(Tj);
+      const wa = V3(...JOINTS[j].ax).applyMatrix4(M4().extractRotation(Tj)).normalize();
+
+      const {pos:ee2} = fkEE(ang);
+      const ve = new THREE.Vector3().subVectors(ee2, jp);
+      const vt = new THREE.Vector3().subVectors(tgt, jp);
+      const proj = v => {
+        const dp = v.dot(wa);
+        return v.clone().sub(wa.clone().multiplyScalar(dp));
+      };
+      const pe = proj(ve), pt = proj(vt);
+      if (pe.lengthSq() < 1e-10 || pt.lengthSq() < 1e-10) continue;
+      const pen = pe.clone().normalize(), ptn = pt.clone().normalize();
+      const cross = new THREE.Vector3().crossVectors(pen, ptn);
+      const sin = wa.dot(cross);
+      const cos_ = pen.dot(ptn);
+      const dth = Math.atan2(sin, cos_) * alpha;
+      ang[j] = Math.max(JOINTS[j].lo, Math.min(JOINTS[j].hi, ang[j] + dth));
+    }
+  }
+  const {pos:fe} = fkEE(ang);
+  err = fe.distanceTo(tgt);
+  return {ang, ok: err < tolM * 10, err};
+}
+
+// ── Get IK params from UI ─────────────────────────────────────────
+function getIKParams() {
+  const iters = parseInt(document.getElementById('ik-iters').value) || 300;
+  const tolMM = parseFloat(document.getElementById('ik-tol').value) || 1.0;
+  const alpha = parseFloat(document.getElementById('ik-alpha').value) || 0.5;
+  return {iters, tolM: tolMM * 0.001, alpha};
+}
+
+// ── Controllers ───────────────────────────────────────────────────
+class HomeC { tick(){return[...HOME]} reset(){} }
+class SineC {
+  A=[.5,.4,.35,.45,.4,.7]; F=[.28,.18,.22,.35,.32,.48]; PH=[0,.5,1,1.5,2,2.5];
+  tick(t){ return JOINTS.slice(0,6).map(({lo,hi},i)=>{
+    const mid=(lo+hi)/2, amp=this.A[i]*(hi-lo)/2;
+    return Math.max(lo,Math.min(hi, mid+amp*Math.sin(2*Math.PI*this.F[i]*t+this.PH[i])));
+  })} reset(){}
+}
+class CircleC {
+  tick(t){
+    const {iters,tolM,alpha}=getIKParams();
+    const a=2*Math.PI*.18*t;
+    const {ang}=solveIK([.25+.09*Math.cos(a),.09*Math.sin(a),.32],iters,tolM,alpha);
+    return ang;
+  } reset(){}
+}
+class DemoC {
+  WP=[[.30,.00,.35],[.25,.15,.28],[.20,-.12,.32],[.22,.00,.42],[.30,.10,.20],[.30,-.10,.20]];
+  i=0; t0=0; cur=[...HOME];
+  tick(t){
+    const {iters,tolM,alpha}=getIKParams();
+    const wp=this.WP[this.i];
+    const {ang,ok,err}=solveIK(wp,iters,tolM,alpha);
+    if(ok) this.cur=ang;
+    if(t-this.t0>=3){this.i=(this.i+1)%this.WP.length;this.t0=t;
+      tl(`<span class="ts">[WP${this.i}]</span> [${wp.map(v=>v.toFixed(2)).join(',')}] <span class="${ok?'ok':'err'}">${err.toFixed(3)}m</span>`)}
+    return this.cur;
+  } reset(){this.i=0;this.t0=0}
+}
+class TrajC {
+  TR=[{a:[0,.5,-1.2,0,.8,0],d:2},{a:[1,1,-1.5,.5,.5,1],d:3},{a:[0,1.5,-2,0,.8,0],d:3},{a:[-1,.5,-1.2,-.5,.5,-1],d:3}];
+  s=0;t0=0;
+  tick(t){if(t-this.t0>=this.TR[this.s].d){this.s=(this.s+1)%this.TR.length;this.t0=t}return this.TR[this.s].a;}
+  reset(){this.s=0;this.t0=0}
+}
+class TrackC {
+  tick(t){
+    const {iters,tolM,alpha}=getIKParams();
+    const {ang}=solveIK([.26+.10*Math.sin(.3*t),.08*Math.sin(.6*t),.30+.08*Math.sin(.3*t+Math.PI/2)],iters,tolM,alpha);
+    return ang;
+  } reset(){}
+}
+const CTRLS={home:HomeC,sine:SineC,circle:CircleC,demo:DemoC,traj:TrajC,track:TrackC};
+
+function setCtrl(name){
+  ctrlName=name; ctrl=new CTRLS[name](); ctrl.reset(); manual=false;
+  document.getElementById('ctrl-badge').textContent=name.toUpperCase();
+  document.getElementById('tb-ctrl').textContent=name.toUpperCase();
+  document.querySelectorAll('.cbtn').forEach(b=>b.classList.toggle('act',b.dataset.ctrl===name));
+  tl(`<span class="ts">[CTRL]</span> <span class="ok">→ ${name.toUpperCase()}</span>`);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  THREE.JS SCENE
+// ═══════════════════════════════════════════════════════════════════
+let renderer, scene, camera, clock;
+let gridH, axesH, eeMarker, ikMarker;
+const linkNodes = {};
+const stlMeshes = {};
+
+function initScene() {
+  const canvas = document.getElementById('c');
+  const vp     = document.getElementById('vp');
+
+  renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.setClearColor(0x08090f);
+  renderer.setSize(vp.clientWidth, vp.clientHeight);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.4;
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x08090f, 4, 12);
+  clock = new THREE.Clock();
+
+  // Camera: Y is up in Three.js, which matches URDF (Z up is handled by our FK)
+  camera = new THREE.PerspectiveCamera(45, vp.clientWidth/vp.clientHeight, 0.005, 20);
+
+  scene.add(new THREE.HemisphereLight(0x334466, 0x101420, 0.9));
+
+  const key = new THREE.DirectionalLight(0xffe8d0, 2.5);
+  key.position.set(0.8, 1.8, 1.0);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024);
+  key.shadow.camera.left=-0.7; key.shadow.camera.right=0.7;
+  key.shadow.camera.top=0.7; key.shadow.camera.bottom=-0.1;
+  key.shadow.camera.near=0.1; key.shadow.camera.far=5;
+  key.shadow.bias=-0.001;
+  scene.add(key);
+
+  const fill = new THREE.DirectionalLight(0x8ab4ff, 1.0);
+  fill.position.set(-1.2, 0.8, 0.4); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0x00d4ff, 0.6);
+  rim.position.set(0.3, 0.5, -1.5); scene.add(rim);
+  const pt = new THREE.PointLight(0x7c3aed, 0.5, 3.0);
+  pt.position.set(-0.2, 0.2, -0.3); scene.add(pt);
+
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(5, 5),
+    new THREE.MeshStandardMaterial({color:0x090c18, roughness:0.95, metalness:0.05})
+  );
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  gridH = new THREE.GridHelper(1.6, 32, 0x1a2035, 0x1a2035);
+  gridH.position.y = 0.0005;
+  scene.add(gridH);
+
+  axesH = new THREE.AxesHelper(0.18);
+  axesH.position.y = 0.001;
+  scene.add(axesH);
+
+  eeMarker = new THREE.Mesh(
+    new THREE.SphereGeometry(0.007, 10, 8),
+    new THREE.MeshStandardMaterial({color:0xf59e0b, emissive:0xf59e0b, emissiveIntensity:0.9, roughness:.2, metalness:.5})
+  );
+  scene.add(eeMarker);
+
+  ikMarker = new THREE.Group();
+  ikMarker.add(new THREE.Mesh(new THREE.SphereGeometry(.013,8,6), new THREE.MeshBasicMaterial({color:0xff2222,wireframe:true})));
+  ikMarker.add(new THREE.Mesh(new THREE.SphereGeometry(.02,8,6),  new THREE.MeshBasicMaterial({color:0xff4444,wireframe:true,opacity:.3,transparent:true})));
+  ikMarker.visible = false;
+  scene.add(ikMarker);
+
+  setupOrbit(canvas, camera);
+
+  window.addEventListener('resize', () => {
+    const w=vp.clientWidth, h=vp.clientHeight;
+    camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h);
+  });
+}
+
+function setupOrbit(canvas, cam) {
+  let dn=false, rmb=false, px=0, py=0;
+  let theta=0.8, phi=0.55, r=1.1;
+  const tgt = V3(0.05, 0.30, 0);   // arm center in Three.js Y-up world
+  const pan = new THREE.Vector3();
+
+  function sync(){
+    cam.position.set(
+      tgt.x+pan.x + r*Math.sin(phi)*Math.sin(theta),
+      tgt.y+pan.y + r*Math.cos(phi),
+      tgt.z+pan.z + r*Math.sin(phi)*Math.cos(theta)
+    );
+    cam.lookAt(tgt.x+pan.x, tgt.y+pan.y, tgt.z+pan.z);
+  }
+  sync();
+  window._setCamera = (t,p,radius) => { theta=t; phi=p; r=radius; sync(); };
+
+  canvas.addEventListener('mousedown', e=>{if(e.button===2){rmb=true;e.preventDefault();}else dn=true;px=e.clientX;py=e.clientY;});
+  window.addEventListener('mouseup', ()=>{dn=false;rmb=false;});
+  window.addEventListener('mousemove', e=>{
+    if(!dn&&!rmb) return;
+    const dx=(e.clientX-px)*.006, dy=(e.clientY-py)*.006;
+    if(rmb){pan.x-=dx*.2;pan.y+=dy*.2;}
+    else{theta-=dx; phi=Math.max(.05,Math.min(Math.PI-.05,phi+dy));}
+    px=e.clientX;py=e.clientY; sync();
+  });
+  canvas.addEventListener('wheel', e=>{r=Math.max(.1,Math.min(4,r+e.deltaY*.001));sync();},{passive:true});
+  canvas.addEventListener('contextmenu', e=>e.preventDefault());
+}
+
+function setView(v){
+  const m={front:[0,.5,.9],side:[1.57,.5,.9],top:[0,.05,.9],iso:[.8,.55,1.1]};
+  if(m[v]) window._setCamera(...m[v]);
+  document.querySelectorAll('.vbtn').forEach(b=>b.classList.toggle('act',b.getAttribute('onclick').includes(v)));
+}
+
+// ── Root frame: URDF is Z-up, Three.js is Y-up.
+//   Apply a single -90° rotation around X on a root group so that:
+//     URDF +Z (up)      → Three.js +Y (up)      [green axis]
+//     URDF +X (forward) → Three.js +X (forward)  [red axis]
+//     URDF +Y (left)    → Three.js -Z (into screen) [blue axis]
+let robotRoot;
+
+function buildLinkNodes(){
+  // Create root group with coord-frame conversion
+  robotRoot = new THREE.Group();
+  robotRoot.rotation.x = -Math.PI / 2;  // Z-up → Y-up
+  scene.add(robotRoot);
+
+  ALL_STL.forEach(name => {
+    const node = new THREE.Object3D();
+    node.name = name;
+    const sph = new THREE.Mesh(
+      new THREE.SphereGeometry(0.012, 10, 8),
+      new THREE.MeshStandardMaterial({color:0x00aacc, emissive:0x002233, roughness:.3, metalness:.9})
+    );
+    sph.name = '__jsph';
+    node.add(sph);
+    robotRoot.add(node);   // attach to root, not scene directly
+    linkNodes[name] = node;
+    stlMeshes[name] = null;
+  });
+}
+
+const _pos = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
+// Pre-built rotation matrix for converting URDF world pos → Three.js world pos
+const _rootQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0));
+
+function applyFK() {
+  const {pos:eeP_urdf, q:eeQ_urdf, mats} = fkEE(angles);
+
+  LINK_ORDER.forEach((name, i) => {
+    const nd = linkNodes[name];
+    if (!nd) return;
+    // Decompose in URDF space; the robotRoot group handles visual transform
+    mats[i].decompose(_pos, _q, _s);
+    nd.position.copy(_pos);
+    nd.quaternion.copy(_q);
+  });
+
+  // Gripper fingers — opposing motion
+  const [W7, W8] = fingerMats(mats[7], gOpenMM);
+  [W7, W8].forEach((wm, fi) => {
+    const nd = linkNodes[FINGER_LINKS[fi]];
+    if (!nd) return;
+    wm.decompose(_pos, _q, _s);
+    nd.position.copy(_pos);
+    nd.quaternion.copy(_q);
+  });
+
+  // EE marker: convert URDF Z-up position to Three.js Y-up for world placement
+  // URDF (x,y,z) → Three.js (x, z, -y)  [same as rotating -90° around X]
+  const eeP = new THREE.Vector3(eeP_urdf.x, eeP_urdf.z, -eeP_urdf.y);
+  eeMarker.position.copy(eeP);
+
+  return {eeP, eeQ: eeQ_urdf};
+}
+
+// ── Trail ────────────────────────────────────────────────────────
+const TMAX = 250;
+const trailPts = [];
+let trailLine = null;
+
+function updateTrail(pt){
+  trailPts.push(pt.clone());
+  if(trailPts.length>TMAX) trailPts.shift();
+  if(trailLine){scene.remove(trailLine);trailLine.geometry.dispose();}
+  if(trailPts.length<2)return;
+  const g=new THREE.BufferGeometry().setFromPoints(trailPts);
+  trailLine=new THREE.Line(g,new THREE.LineBasicMaterial({color:0x00d4ff,opacity:.5,transparent:true}));
+  scene.add(trailLine);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  STL PARSER
+// ═══════════════════════════════════════════════════════════════════
+function parseSTL(buf){
+  const dv = new DataView(buf);
+  let bin = false;
+  try { const n=dv.getUint32(80,true); if(n>0 && buf.byteLength===80+4+n*50) bin=true; } catch(_){}
+  if(bin){
+    const n=dv.getUint32(80,true);
+    const pos=new Float32Array(n*9), nor=new Float32Array(n*9);
+    let o=84;
+    for(let f=0;f<n;f++){
+      const nx=dv.getFloat32(o,true),ny=dv.getFloat32(o+4,true),nz=dv.getFloat32(o+8,true); o+=12;
+      for(let v=0;v<3;v++){
+        const vi=f*9+v*3;
+        pos[vi]=dv.getFloat32(o,true);pos[vi+1]=dv.getFloat32(o+4,true);pos[vi+2]=dv.getFloat32(o+8,true); o+=12;
+        nor[vi]=nx;nor[vi+1]=ny;nor[vi+2]=nz;
+      }
+      o+=2;
+    }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    g.setAttribute('normal',new THREE.BufferAttribute(nor,3));
+    return g;
+  } else {
+    const txt=new TextDecoder().decode(buf);
+    const pos=[],nor=[];
+    const nRe=/facet normal\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/g;
+    const vRe=/vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/g;
+    const ns=[]; let m;
+    while((m=nRe.exec(txt))!==null) ns.push([+m[1],+m[2],+m[3]]);
+    let vi=0;
+    while((m=vRe.exec(txt))!==null){
+      pos.push(+m[1],+m[2],+m[3]);
+      const n=ns[Math.floor(vi/3)]||[0,1,0]; nor.push(...n); vi++;
+    }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pos),3));
+    g.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(nor),3));
+    return g;
+  }
+}
+
+function detectLink(filename){
+  let s=filename.toLowerCase().replace(/\.stl$/i,'');
+  s=s.replace(/^meshes[_\-]?/,'').replace(/^mesh[_\-]?/,'').trim();
+  if(ALL_STL.includes(s)) return s;
+  const sorted=[...ALL_STL].sort((a,b)=>b.length-a.length);
+  for(const ln of sorted){ if(s.endsWith(ln)||s.includes(ln)) return ln; }
+  return null;
+}
+
+const STL_MAT_PROPS = {color:0x2d4060, roughness:0.35, metalness:0.8};
+const STL_SPECIAL = {
+  link6:{color:0x3a5070, roughness:0.3, metalness:0.85},
+  gripper_base:{color:0x3a2860, roughness:0.35, metalness:0.82},
+  link7:{color:0x4a3580, roughness:0.3, metalness:0.85},
+  link8:{color:0x4a3580, roughness:0.3, metalness:0.85},
+};
+function makeSTLMat(name){ return new THREE.MeshStandardMaterial({...(STL_SPECIAL[name]||STL_MAT_PROPS)}); }
+
+let loadedCount=0;
+function handleFiles(files){
+  const arr=Array.from(files).filter(f=>/\.stl$/i.test(f.name));
+  if(!arr.length){ tl('<span class="ts">[STL]</span> <span class="err">No .stl files found.</span>'); return; }
+  arr.forEach(file=>{
+    const linkName=detectLink(file.name);
+    if(!linkName){ tl(`<span class="ts">[STL]</span> <span class="err">Cannot ID link: ${file.name}</span>`); return; }
+    const fl=document.getElementById('flist');
+    const old=document.getElementById(`fi-${linkName}`); if(old)old.remove();
+    const fi=document.createElement('div'); fi.className='fi'; fi.id=`fi-${linkName}`;
+    fi.innerHTML=`<div class="fdot p" id="fd-${linkName}"></div><span>${file.name}</span><span style="color:var(--accent3);margin-left:auto">→ ${linkName}</span>`;
+    fl.appendChild(fi);
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const geo=parseSTL(ev.target.result);
+        const bb=new THREE.Box3().setFromBufferAttribute(geo.attributes.position);
+        const sz=new THREE.Vector3(); bb.getSize(sz);
+        if(Math.max(sz.x,sz.y,sz.z)>2.0) geo.scale(0.001,0.001,0.001);
+        geo.computeVertexNormals();
+        const mat=makeSTLMat(linkName);
+        const mesh=new THREE.Mesh(geo,mat); mesh.name='__stl'; mesh.castShadow=true; mesh.receiveShadow=true;
+        const node=linkNodes[linkName];
+        const oldM=node.getObjectByName('__stl');
+        if(oldM){node.remove(oldM);oldM.geometry.dispose();oldM.material.dispose();}
+        node.add(mesh); stlMeshes[linkName]=mesh;
+        const jsph=node.getObjectByName('__jsph'); if(jsph)jsph.visible=false;
+        const dot=document.getElementById(`fd-${linkName}`); if(dot)dot.classList.remove('p');
+        updateMeshTable();
+        loadedCount=ALL_STL.filter(n=>stlMeshes[n]).length;
+        document.getElementById('mstat').innerHTML=`<span class="ok">✓ ${loadedCount}/${ALL_STL.length} meshes loaded.</span>`;
+        tl(`<span class="ts">[STL]</span> <span class="ok">✓ ${linkName}</span> ${(geo.attributes.position.count/3).toFixed(0)} tris`);
+      }catch(err){
+        tl(`<span class="ts">[STL]</span> <span class="err">✗ ${file.name}: ${err.message}</span>`);
+        const dot=document.getElementById(`fd-${linkName}`); if(dot)dot.className='fdot e';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function buildMeshTable(){
+  const t=document.getElementById('mtable');
+  t.innerHTML=ALL_STL.map(n=>`<tr><td>${n}</td><td><span class="mbadge p" id="mb-${n}">PENDING</span></td></tr>`).join('');
+}
+function updateMeshTable(){
+  ALL_STL.forEach(n=>{
+    const el=document.getElementById(`mb-${n}`); if(!el)return;
+    if(stlMeshes[n]){el.textContent='LOADED';el.className='mbadge ok';}
+    else{el.textContent='PENDING';el.className='mbadge p';}
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  JOINT BARS + MANUAL
+// ═══════════════════════════════════════════════════════════════════
+function buildJointBars(){
+  const c=document.getElementById('jbars'); c.innerHTML='';
+  JOINTS.slice(0,6).forEach(({n},i)=>{
+    const r=document.createElement('div'); r.className='jrow';
+    r.innerHTML=`<span class="jname">${n}</span><div class="jtrack" style="position:relative"><div class="jfill" id="jf-${i}" style="left:50%;width:0%"></div></div><span class="jdeg" id="jd-${i}">0°</span>`;
+    c.appendChild(r);
+  });
+}
+function buildManual(){
+  const c=document.getElementById('mjsliders'); c.innerHTML='';
+  JOINTS.slice(0,6).forEach(({n,lo,hi},i)=>{
+    const r=document.createElement('div'); r.className='srow';
+    r.innerHTML=`<span class="slbl">${n}</span><div class="swrap"><input type="range" class="msl" data-i="${i}" min="${lo.toFixed(3)}" max="${hi.toFixed(3)}" step="0.005" value="${HOME[i].toFixed(3)}"></div><span class="sval msv" id="msv-${i}">${(HOME[i]*180/Math.PI).toFixed(0)}°</span>`;
+    c.appendChild(r);
+  });
+  c.querySelectorAll('.msl').forEach(sl=>{
+    sl.addEventListener('input',()=>{
+      const i=+sl.dataset.i; angles[i]=+sl.value;
+      const v=document.getElementById(`msv-${i}`); if(v)v.textContent=(angles[i]*180/Math.PI).toFixed(0)+'°';
+      manual=true; ctrl=null;
+      document.querySelectorAll('.cbtn').forEach(b=>b.classList.remove('act'));
+    });
+  });
+}
+function syncJointBars(){
+  JOINTS.slice(0,6).forEach(({lo,hi},i)=>{
+    const fill=document.getElementById(`jf-${i}`), deg=document.getElementById(`jd-${i}`);
+    if(!fill||!deg)return;
+    const pct=(angles[i]-lo)/(hi-lo)*100;
+    const mid=(-lo)/(hi-lo)*100;
+    const L=Math.min(pct,mid), W=Math.abs(pct-mid);
+    fill.style.left=L+'%'; fill.style.width=Math.max(W,.4)+'%';
+    fill.classList.toggle('neg',angles[i]<0);
+    deg.textContent=(angles[i]*180/Math.PI).toFixed(1)+'°';
+    if(!manual){
+      const sl=document.querySelector(`.msl[data-i="${i}"]`); if(sl)sl.value=angles[i];
+      const sv=document.getElementById(`msv-${i}`); if(sv)sv.textContent=(angles[i]*180/Math.PI).toFixed(0)+'°';
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TELEMETRY LOG
+// ═══════════════════════════════════════════════════════════════════
+function tl(html){
+  const el=document.getElementById('tlog');
+  const d=document.createElement('div'); d.className='tl'; d.innerHTML=html;
+  el.appendChild(d);
+  if(el.children.length>120) el.removeChild(el.firstChild);
+  el.scrollTop=el.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  IK TESTS
+// ═══════════════════════════════════════════════════════════════════
+function runIKTests(){
+  const {iters,tolM,alpha}=getIKParams();
+  const tests=[{p:[.30,.00,.35],l:'Front'},{p:[.25,.15,.28],l:'Right'},{p:[.25,-.15,.28],l:'Left'},{p:[.20,.00,.42],l:'High'},{p:[.30,.00,.15],l:'Low'},{p:[.18,.18,.18],l:'Diag'}];
+  tl('<span style="color:var(--accent)">═ IK SELF-TEST ═</span>');
+  tests.forEach(({p,l})=>{
+    const{ok,err}=solveIK(p,iters,tolM,alpha);
+    tl(`  <span style="color:var(--text3);display:inline-block;min-width:60px">${l}</span> <span class="${ok?'ok':'err'}">${ok?'✓ PASS':'✗ FAIL'}</span> err=${err.toFixed(4)}m`);
+  });
+  tl('<span style="color:var(--accent)">════════════════</span>');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TERMINAL
+// ═══════════════════════════════════════════════════════════════════
+const JointMap = {A:0, B:1, C:2, D:3, E:4, F:5};
+
+function termPrint(html){
+  const el=document.getElementById('term-out');
+  const d=document.createElement('div'); d.innerHTML=html;
+  el.appendChild(d);
+  if(el.children.length>300) el.removeChild(el.firstChild);
+  el.scrollTop=el.scrollHeight;
+}
+function termCmd(raw){
+  const cmd=raw.trim().toUpperCase();
+  if(!cmd) return;
+  termPrint(`<span style="color:var(--accent)">piper&gt;</span> <span style="color:var(--text)">${raw}</span>`);
+
+  // E-Stop
+  if(cmd==='E'){ eStopped=true; ctrl=null; manual=true; termPrint('<span style="color:var(--err)">⚠ E-STOP ACTIVE — all motion halted. Type R to resume.</span>'); tl('<span class="ts">[CMD]</span> <span class="err">E-STOP</span>'); return; }
+  if(eStopped && cmd!=='R'){ termPrint('<span style="color:var(--warn)">E-stop active. Type R to resume.</span>'); return; }
+
+  // Resume
+  if(cmd==='R'){ eStopped=false; termPrint('<span style="color:var(--ok)">Resumed.</span>'); tl('<span class="ts">[CMD]</span> <span class="ok">Resumed</span>'); return; }
+
+  // Home
+  if(cmd==='Z'){ angles=[...HOME]; gOpenMM=0; manual=false; setCtrl('home'); termPrint('<span style="color:var(--ok)">→ Home position.</span>'); return; }
+
+  // Print EE
+  if(cmd==='P'){
+    const {pos}=fkEE(angles);
+    termPrint(`EE pos: X=${pos.x.toFixed(4)} Y=${pos.y.toFixed(4)} Z=${pos.z.toFixed(4)} m`);
+    return;
+  }
+
+  // Add waypoint
+  if(cmd==='W'){
+    const {pos}=fkEE(angles);
+    waypoints.push({angles:[...angles], gOpenMM, pos:{x:pos.x,y:pos.y,z:pos.z}});
+    termPrint(`<span style="color:var(--ok)">Waypoint ${waypoints.length} saved: [${pos.x.toFixed(3)},${pos.y.toFixed(3)},${pos.z.toFixed(3)}]</span>`);
+    tl(`<span class="ts">[WP]</span> WP${waypoints.length} saved`);
+    return;
+  }
+
+  // List waypoints
+  if(cmd==='L'){
+    if(!waypoints.length){ termPrint('No waypoints.'); return; }
+    termPrint(`<span style="color:var(--accent)">Waypoints (${waypoints.length}):</span>`);
+    waypoints.forEach((wp,i)=>termPrint(`  ${i+1}: X=${wp.pos.x.toFixed(3)} Y=${wp.pos.y.toFixed(3)} Z=${wp.pos.z.toFixed(3)} G=${wp.gOpenMM.toFixed(1)}mm`));
+    return;
+  }
+
+  // Clear waypoints
+  if(cmd==='CW'){ waypoints.length=0; termPrint('<span style="color:var(--warn)">Waypoints cleared.</span>'); return; }
+
+  // Mode menu
+  if(cmd==='M'){
+    termPrint('Controllers: HOME | SINE | CIRCLE | DEMO | TRAJ | TRACK');
+    termPrint('Type e.g. <span style="color:var(--accent)">MODE SINE</span> to switch.');
+    return;
+  }
+  if(cmd.startsWith('MODE ')){
+    const m=cmd.slice(5).toLowerCase();
+    if(CTRLS[m]){ setCtrl(m); termPrint(`<span style="color:var(--ok)">Controller → ${m.toUpperCase()}</span>`); }
+    else termPrint(`<span style="color:var(--err)">Unknown controller: ${m}</span>`);
+    return;
+  }
+
+  // Speed: V<n> sets speed to n/10
+  const vm=cmd.match(/^V(\d+)$/);
+  if(vm){ const s=parseInt(vm[1])/10; speed=Math.max(0.1,Math.min(3,s)); document.getElementById('spd').value=speed; document.getElementById('spd-out').textContent=speed.toFixed(1)+'×'; termPrint(`<span style="color:var(--ok)">Speed → ${speed.toFixed(1)}×</span>`); return; }
+
+  // Save CSV
+  if(cmd==='S'){
+    const {pos}=fkEE(angles);
+    const row=[simT.toFixed(2),...angles.map(a=>(a*180/Math.PI).toFixed(2)),gOpenMM.toFixed(1),pos.x.toFixed(4),pos.y.toFixed(4),pos.z.toFixed(4)].join(',');
+    csvLog.push(row);
+    termPrint(`<span style="color:var(--ok)">Row ${csvLog.length} logged: t=${simT.toFixed(2)}s</span>`);
+    if(csvLog.length>=2){
+      const header='time,J1,J2,J3,J4,J5,J6,Grip_mm,EE_X,EE_Y,EE_Z';
+      const blob=new Blob([[header,...csvLog].join('\n')],{type:'text/csv'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='piper_log.csv'; a.click();
+      termPrint('<span style="color:var(--ok)">CSV downloaded.</span>');
+    }
+    return;
+  }
+
+  // Quit
+  if(cmd==='Q'){ termPrint('<span style="color:var(--text3)">Session ended. Reload to restart.</span>'); eStopped=true; return; }
+
+  // Joint command: [A-F][P|N]\d+  e.g. AP10 BN05
+  const jm=cmd.match(/^([A-F])([PN])(\d+)$/);
+  if(jm){
+    const ji=JointMap[jm[1]];
+    const sign=(jm[2]==='P')?1:-1;
+    const deg=parseInt(jm[3]);
+    const rad=deg*Math.PI/180;
+    const {lo,hi}=JOINTS[ji];
+    const newA=Math.max(lo,Math.min(hi,angles[ji]+sign*rad));
+    const actualDeg=(newA-angles[ji])*180/Math.PI;
+    angles[ji]=newA; manual=true; ctrl=null;
+    document.querySelectorAll('.cbtn').forEach(b=>b.classList.remove('act'));
+    termPrint(`J${ji+1}: ${actualDeg>=0?'+':''}${actualDeg.toFixed(1)}° → ${(newA*180/Math.PI).toFixed(1)}°`);
+    tl(`<span class="ts">[CMD]</span> J${ji+1} ${sign>0?'+':'-'}${deg}°`);
+    return;
+  }
+
+  // Gripper open: G<mm>
+  const gom=cmd.match(/^G(\d+(?:\.\d+)?)$/);
+  if(gom){ const d=parseFloat(gom[1]); gOpenMM=Math.min(35,gOpenMM+d); document.getElementById('g-sl').value=gOpenMM/35*100; document.getElementById('g-out').textContent=(gOpenMM/35*100).toFixed(0)+'%'; termPrint(`Gripper open → ${gOpenMM.toFixed(1)} mm`); return; }
+
+  // Gripper close: F<mm>
+  const gcm=cmd.match(/^F(\d+(?:\.\d+)?)$/);
+  if(gcm){ const d=parseFloat(gcm[1]); gOpenMM=Math.max(0,gOpenMM-d); document.getElementById('g-sl').value=gOpenMM/35*100; document.getElementById('g-out').textContent=(gOpenMM/35*100).toFixed(0)+'%'; termPrint(`Gripper close → ${gOpenMM.toFixed(1)} mm`); return; }
+
+  // Help
+  if(cmd==='H'||cmd==='HELP'){
+    termPrint('<span style="color:var(--accent)">Commands:</span>');
+    termPrint('AP10/AN10  Joint A ±10° (A-F = J1-J6)');
+    termPrint('G10/F10    Gripper open/close 10mm');
+    termPrint('W          Add waypoint  L: list  CW: clear');
+    termPrint('P          Print EE position');
+    termPrint('V5         Speed = 5/10 = 0.5×');
+    termPrint('E          Emergency stop  R: resume');
+    termPrint('Z          Home (reset)');
+    termPrint('S          Save/export CSV log');
+    termPrint('M          Mode menu  MODE SINE etc.');
+    termPrint('Q          Quit (pause sim)');
+    return;
+  }
+
+  termPrint(`<span style="color:var(--err)">Unknown: ${cmd} — type H for help</span>`);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  UI WIRING
+// ═══════════════════════════════════════════════════════════════════
+function wireUI(){
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click',()=>{
+      const id=t.dataset.t;
+      document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('act',x.dataset.t===id));
+      document.querySelectorAll('.tp').forEach(x=>x.classList.toggle('act',x.dataset.p===id));
+    });
+  });
+
+  document.querySelectorAll('.cbtn[data-ctrl]').forEach(b=>{
+    b.addEventListener('click',()=>setCtrl(b.dataset.ctrl));
+  });
+
+  // Gripper slider → gOpenMM (0-35mm)
+  document.getElementById('g-sl').addEventListener('input',e=>{
+    gOpenMM=(+e.target.value/100)*35;
+    document.getElementById('g-out').textContent=(+e.target.value)+'%';
+  });
+
+  document.getElementById('spd').addEventListener('input',e=>{
+    document.getElementById('spd-out').textContent=(+e.target.value).toFixed(1)+'×';
+  });
+
+  ['x','y','z'].forEach(a=>{
+    const sl=document.getElementById(`ik-${a}`), out=document.getElementById(`ik-${a}-v`);
+    sl.addEventListener('input',()=>out.textContent=(+sl.value).toFixed(3));
+  });
+  document.getElementById('ik-iters').addEventListener('input',e=>{document.getElementById('ik-iters-v').textContent=e.target.value;});
+  document.getElementById('ik-tol').addEventListener('input',e=>{document.getElementById('ik-tol-v').textContent=(+e.target.value).toFixed(1);});
+  document.getElementById('ik-alpha').addEventListener('input',e=>{document.getElementById('ik-alpha-v').textContent=(+e.target.value).toFixed(2);});
+
+  document.getElementById('ik-go').addEventListener('click',()=>{
+    const tx=+document.getElementById('ik-x').value;
+    const ty=+document.getElementById('ik-y').value;
+    const tz=+document.getElementById('ik-z').value;
+    const {iters,tolM,alpha}=getIKParams();
+    const {ang,ok,err}=solveIK([tx,ty,tz],iters,tolM,alpha);
+    ikOk=ok; ikErr=err; angles=[...ang]; manual=true; ctrl=null;
+    document.querySelectorAll('.cbtn').forEach(b=>b.classList.remove('act'));
+    if(ikMarker){ ikMarker.position.set(tx,tz,-ty); ikMarker.visible=true; document.getElementById('cb-ikt').checked=true; }  // URDF→Three: (x,y,z)→(x,z,-y)
+    document.getElementById('ik-res').innerHTML=`<b class="${ok?'ok':'err'}">${ok?'✓ SOLVED':'✗ FAILED'}</b> err=${err.toFixed(5)}m<br>tgt=[${[tx,ty,tz].map(v=>v.toFixed(3)).join(', ')}]`;
+    tl(`<span class="ts">[IK]</span> ${ok?'<span class="ok">✓</span>':'<span class="err">✗</span>'} [${[tx,ty,tz].map(v=>v.toFixed(3)).join(',')}] ${err.toFixed(4)}m`);
+  });
+
+  document.getElementById('ik-test').addEventListener('click',runIKTests);
+
+  const dz=document.getElementById('dz'), fi=document.getElementById('fi');
+  dz.addEventListener('click',()=>fi.click());
+  fi.addEventListener('change',e=>{ handleFiles(e.target.files); fi.value=''; });
+  const vp=document.getElementById('vp');
+  const dragOver=e=>{e.preventDefault();dz.classList.add('over');};
+  const dragLeave=()=>dz.classList.remove('over');
+  const drop=e=>{e.preventDefault();dz.classList.remove('over');handleFiles(e.dataTransfer.files);};
+  vp.addEventListener('dragover',dragOver); vp.addEventListener('dragleave',dragLeave); vp.addEventListener('drop',drop);
+  dz.addEventListener('dragover',dragOver); dz.addEventListener('dragleave',dragLeave); dz.addEventListener('drop',drop);
+
+  // Terminal
+  const termInput=document.getElementById('term-input');
+  const termHistory=[]; let histIdx=-1;
+  termInput.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){
+      const v=termInput.value;
+      if(v.trim()) termHistory.unshift(v);
+      histIdx=-1;
+      termCmd(v); termInput.value='';
+    } else if(e.key==='ArrowUp'){
+      if(histIdx<termHistory.length-1){ histIdx++; termInput.value=termHistory[histIdx]; }
+      e.preventDefault();
+    } else if(e.key==='ArrowDown'){
+      if(histIdx>0){ histIdx--; termInput.value=termHistory[histIdx]; }
+      else{ histIdx=-1; termInput.value=''; }
+      e.preventDefault();
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SIMULATION LOOP
+// ═══════════════════════════════════════════════════════════════════
+const DT=1/120;
+let lastLog=0;
+let domEx,domEy,domEz,domEr,domEp,domEyw,domHik,domTbT,domTbEe,domTbIk,domSbT,domSbS,domSbEe;
+
+function cacheDom(){
+  domEx=document.getElementById('h-x');domEy=document.getElementById('h-y');domEz=document.getElementById('h-z');
+  domEr=document.getElementById('h-r');domEp=document.getElementById('h-p');domEyw=document.getElementById('h-yw');
+  domHik=document.getElementById('h-ik');
+  domTbT=document.getElementById('tb-t');domTbEe=document.getElementById('tb-ee');domTbIk=document.getElementById('tb-ik');
+  domSbT=document.getElementById('sb-t');domSbS=document.getElementById('sb-s');domSbEe=document.getElementById('sb-ee');
+}
+
+function loop(){
+  requestAnimationFrame(loop);
+
+  // Sync gripper from slider
+  gOpenMM=(+document.getElementById('g-sl').value/100)*35;
+  speed=+document.getElementById('spd').value;
+
+  if(!eStopped && !manual && ctrl){
+    const desired=ctrl.tick(simT*speed);
+    if(desired) angles=desired;
+    simT+=DT; simStep++;
+  }
+
+  const {eeP, eeQ}=applyFK();
+
+  gridH.visible=document.getElementById('cb-grid').checked;
+  axesH.visible=document.getElementById('cb-axes').checked;
+  ikMarker.visible=document.getElementById('cb-ikt').checked;
+  if(ikMarker.visible) ikMarker.rotation.y=simT;
+
+  if(document.getElementById('cb-trail').checked) updateTrail(eeP);
+
+  const eu=new THREE.Euler().setFromQuaternion(eeQ,'XYZ');
+  const f3=v=>(v>=0?'+':'')+v.toFixed(3);
+  const f1=v=>(v*180/Math.PI).toFixed(1)+'°';
+  domEx.textContent=f3(eeP.x); domEy.textContent=f3(eeP.y); domEz.textContent=f3(eeP.z);
+  domEr.textContent=f1(eu.x); domEp.textContent=f1(eu.y); domEyw.textContent=f1(eu.z);
+  const ikStr=ikOk?`✓ ${ikErr.toFixed(4)}m`:ikErr>0?`✗ ${ikErr.toFixed(4)}m`:'—';
+  domHik.textContent=ikStr; domHik.className='hval '+(ikOk?'ok':ikErr>0?'fail':'');
+  domTbT.textContent=simT.toFixed(1)+'s';
+  domTbEe.textContent=`[${eeP.x.toFixed(2)},${eeP.y.toFixed(2)},${eeP.z.toFixed(2)}]`;
+  domTbIk.textContent=ikOk?'PASS':ikErr>0?'FAIL':'—';
+  domTbIk.className=ikOk?'ok':ikErr>0?'warn':'';
+  domSbT.textContent=simT.toFixed(1)+'s';
+  domSbS.textContent=simStep.toLocaleString();
+  domSbEe.textContent=`[${eeP.x.toFixed(3)},${eeP.y.toFixed(3)},${eeP.z.toFixed(3)}]`;
+
+  syncJointBars();
+
+  // Gripper UI — fingers open in opposite directions
+  const gPct=gOpenMM/35;
+  const gfl=document.getElementById('gfl'),gfr=document.getElementById('gfr');
+  if(gfl) gfl.style.transform=`rotate(${gPct*18}deg)`;
+  if(gfr) gfr.style.transform=`rotate(${-gPct*18}deg)`;
+
+  if(simStep>0&&simStep-lastLog>=120){
+    lastLog=simStep;
+    tl(`<span class="ts">t=${simT.toFixed(1)}s</span> EE=[${eeP.x.toFixed(3)},${eeP.y.toFixed(3)},${eeP.z.toFixed(3)}]`);
+  }
+
+  renderer.render(scene,camera);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════════
+function setLoad(msg,pct){
+  document.getElementById('lmsg').textContent=msg;
+  document.getElementById('lbar').style.width=pct+'%';
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  const ov=document.getElementById('loading');
+  setLoad('Initialising renderer…',10);
+  setTimeout(()=>{
+    try{
+      setLoad('Building scene & lighting…',25);
+      initScene();
+      setLoad('Creating URDF link nodes…',45);
+      buildLinkNodes();
+      setLoad('Building UI…',60);
+      buildJointBars(); buildManual(); buildMeshTable();
+      setLoad('Wiring events…',72);
+      wireUI(); cacheDom();
+      setLoad('Starting sim…',85);
+      setCtrl('home');
+      angles=[...HOME];
+      applyFK();
+      setLoad('IK self-test…',93);
+      runIKTests();
+      setLoad('Ready.',100);
+      setTimeout(()=>ov.style.display='none',250);
+      // Terminal welcome
+      termPrint('<span style="color:var(--accent)">Piper AM Terminal ready.</span>');
+      termPrint('Type <span style="color:var(--accent3)">H</span> for command reference.');
+      termPrint('<span style="color:var(--text3)">Joints: A=J1 B=J2 C=J3 D=J4 E=J5 F=J6</span>');
+      tl('<span class="ok">▶ Sim ready. Drop STL files on MESHES tab.</span>');
+      loop();
+    }catch(e){
+      document.getElementById('lmsg').textContent='ERROR: '+e.message;
+      console.error(e);
+    }
+  },100);
+});
+</script>
+</body>
+</html>
